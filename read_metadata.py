@@ -49,7 +49,7 @@ def recoginze_color_type(number):
         case _:
             return "Wrong number"
 
-file_path = 'example2.png'
+file_path = 'example.png'
 metadata = read_png_metadata(file_path)
 print("Width:", metadata.get('width'))
 print("Height:", metadata.get('height'))
