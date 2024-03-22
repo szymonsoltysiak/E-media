@@ -1,3 +1,6 @@
+from PIL import Image
+import io
+
 def read_IHDR(data):
     metadata = {}
 
@@ -49,6 +52,12 @@ def recoginze_color_type(number):
         case _:
             return "Wrong number"
 
+def show_png_image(file_path):
+    with open(file_path, 'rb') as file:
+        image_bytes = file.read()
+        image = Image.open(io.BytesIO(image_bytes))
+        image.show()
+
 file_path = 'example.png'
 metadata = read_png_metadata(file_path)
 print("Width:", metadata.get('width'))
@@ -58,3 +67,5 @@ print("Color type:", metadata.get('color_type'),", ", recoginze_color_type(metad
 print("Compression method:", metadata.get('compression_method'))
 print("Filter method:", metadata.get('filter_method'))
 print("Interlace method:", metadata.get('interlace_method'))
+
+show_png_image(file_path)
