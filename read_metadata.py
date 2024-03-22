@@ -1,16 +1,19 @@
 from PIL import Image
 import io
 
+def byte_to_int(data):
+    return int.from_bytes(data, byteorder='big')
+
 def read_IHDR(data):
     metadata = {}
 
-    metadata['width'] = int.from_bytes(data[0:4], byteorder='big')
-    metadata['height'] = int.from_bytes(data[4:8], byteorder='big')
-    metadata['bit_depth'] = int.from_bytes(data[8:9], byteorder='big')
-    metadata['color_type'] = int.from_bytes(data[9:10], byteorder='big')
-    metadata['compression_method'] = int.from_bytes(data[10:11], byteorder='big')
-    metadata['filter_method'] = int.from_bytes(data[11:12], byteorder='big')
-    metadata['interlace_method'] = int.from_bytes(data[12:13], byteorder='big')
+    metadata['width'] = byte_to_int(data[0:4])
+    metadata['height'] = byte_to_int(data[4:8])
+    metadata['bit_depth'] = byte_to_int(data[8:9])
+    metadata['color_type'] = byte_to_int(data[9:10])
+    metadata['compression_method'] = byte_to_int(data[10:11])
+    metadata['filter_method'] = byte_to_int(data[11:12])
+    metadata['interlace_method'] = byte_to_int(data[12:13])
 
     return metadata
 
@@ -26,7 +29,7 @@ def read_png_metadata(file_path):
             length_bytes = file.read(4)
             if len(length_bytes) != 4:
                 break
-            length = int.from_bytes(length_bytes, byteorder='big')
+            length = byte_to_int(length_bytes)
 
             block_type = file.read(4)
             data = file.read(length)
