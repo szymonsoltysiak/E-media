@@ -1,9 +1,13 @@
 from PIL import Image, ImageTk
 import io
 import tkinter as tk
+import numpy as np
+from numpy.fft import fftshift, ifftshift
+from scipy.fft import fft2, ifft2
 
 def byte_to_int(data):
     return int.from_bytes(data, byteorder='big')
+
 
 def read_IHDR(data):
     metadata = {}
@@ -18,12 +22,14 @@ def read_IHDR(data):
 
     return metadata
 
+
 def read_PLTE(data):
     palette = []
     for i in range(0, len(data), 3):
-        color = tuple(data[i:i+3])
+        color = tuple(data[i:i + 3])
         palette.append(color)
     return palette
+
 
 def read_png_metadata(file_path):
     with open(file_path, 'rb') as file:
@@ -54,9 +60,9 @@ def read_png_metadata(file_path):
                 metadata['END'] = True
                 break
 
-
         return metadata
-    
+
+
 def recoginze_color_type(number):
     match number:
         case 0:
@@ -72,11 +78,13 @@ def recoginze_color_type(number):
         case _:
             return "Wrong number"
 
+
 def show_png_image(file_path):
     with open(file_path, 'rb') as file:
         image_bytes = file.read()
         image = Image.open(io.BytesIO(image_bytes))
         image.show()
+
 
 def show_palette(palette):
     if palette:
@@ -89,12 +97,43 @@ def show_palette(palette):
     else:
         print("No palette found.")
 
+
+def apply_fourier_transform(file_path):
+    with open(file_path, 'rb') as file:
+        image_bytes = file.read()
+        image = Image.open(io.BytesIO(image_bytes))
+        image_array = np.array(image)
+
+        # Transformata Fouriera
+        image_fft = fft2(image_array)
+        image_fft_shifted = fftshift(image_fft)
+
+        # Odwrotna
+        image_restored_fft = ifftshift(image_fft_shifted)
+        image_restored = ifft2(image_restored_fft)
+
+        # rzeczywista czesc przywroconego obrazu
+        image_restored = np.real(image_restored)
+
+        # przetwarzanie na obraz
+        restored_image = Image.fromarray(image_restored.astype('uint8'))
+        restored_image.show()
+
+def anonymize_image(image_array, box):
+    # zamazywanie obszaru
+    #box[0] gorna granica wiersz, box[1] lewa granica kolumn, box[2] dolna granica wierszy, box[3] prawa granica kolumn
+    blurred_region = image_array[box[0]:box[2], box[1]:box[3]]
+    blurred_region[:] = np.mean(blurred_region, axis=(0, 1), keepdims=True)#srednia kolorow,do koloru zamazywania
+    image_array[box[0]:box[2], box[1]:box[3]] = blurred_region #zastep oryg obszar zamazanym fragmentem
+    return image_array
+
+
 file_path = 'example4.png'
 metadata = read_png_metadata(file_path)
 print("Width:", metadata.get('width'))
 print("Height:", metadata.get('height'))
 print("Bit depth:", metadata.get('bit_depth'))
-print("Color type:", metadata.get('color_type'),", ", recoginze_color_type(metadata.get('color_type')))
+print("Color type:", metadata.get('color_type'), ", ", recoginze_color_type(metadata.get('color_type')))
 print("Compression method:", metadata.get('compression_method'))
 print("Filter method:", metadata.get('filter_method'))
 print("Interlace method:", metadata.get('interlace_method'))
@@ -105,5 +144,13 @@ if metadata.get('END'):
     print("File ends properly")
 else:
     print("No IEND chunk")
+
+apply_fourier_transform(file_path)
+
+image = Image.open(file_path)
+image_array = np.array(image)
+anonymized_image_array = anonymize_image(image_array, (100, 100, 200, 200))  # Specify the box to be anonymized
+anonymized_image = Image.fromarray(anonymized_image_array)
+anonymized_image.show()
 
 show_png_image(file_path)
