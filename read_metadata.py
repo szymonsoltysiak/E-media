@@ -1,5 +1,6 @@
 from PIL import Image
 import io
+import matplotlib.pyplot as plt
 
 def byte_to_int(data):
     return int.from_bytes(data, byteorder='big')
@@ -17,6 +18,13 @@ def read_IHDR(data):
 
     return metadata
 
+def read_PLTE(data):
+    palette = []
+    for i in range(0, len(data), 3):
+        color = tuple(data[i:i+3])
+        palette.append(color)
+    return palette
+
 def read_png_metadata(file_path):
     with open(file_path, 'rb') as file:
         header = file.read(8)
@@ -24,6 +32,8 @@ def read_png_metadata(file_path):
             raise ValueError("This is not PNG flie")
 
         metadata = {}
+        metadata['END'] = False
+        palette = None
 
         while True:
             length_bytes = file.read(4)
@@ -37,6 +47,13 @@ def read_png_metadata(file_path):
 
             if block_type == b'IHDR':
                 metadata = read_IHDR(data)
+            elif block_type == b'PLTE':
+                palette = read_PLTE(data)
+                metadata['palette'] = palette
+            elif block_type == b'IEND':
+                metadata['END'] = True
+                break
+
 
         return metadata
     
@@ -61,7 +78,18 @@ def show_png_image(file_path):
         image = Image.open(io.BytesIO(image_bytes))
         image.show()
 
-file_path = 'example.png'
+def visualize_palette(palette):
+    if palette:
+        num_colors = len(palette)
+        fig, ax = plt.subplots(1, num_colors, figsize=(num_colors, 1))
+        for i, color in enumerate(palette):
+            ax[i].imshow([[color]], extent=[0, 1, 0, 1], aspect='auto')
+            ax[i].axis('off')
+        plt.show()
+    else:
+        print("No palette found.")
+
+file_path = 'example4.png'
 metadata = read_png_metadata(file_path)
 print("Width:", metadata.get('width'))
 print("Height:", metadata.get('height'))
@@ -71,4 +99,11 @@ print("Compression method:", metadata.get('compression_method'))
 print("Filter method:", metadata.get('filter_method'))
 print("Interlace method:", metadata.get('interlace_method'))
 
-show_png_image(file_path)
+visualize_palette(metadata.get('palette'))
+
+if metadata.get('END'):
+    print("File ends properly")
+else:
+    print("No IEND chunk")
+
+#show_png_image(file_path)
