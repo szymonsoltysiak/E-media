@@ -1,6 +1,6 @@
-from PIL import Image
+from PIL import Image, ImageTk
 import io
-import matplotlib.pyplot as plt
+import tkinter as tk
 
 def byte_to_int(data):
     return int.from_bytes(data, byteorder='big')
@@ -78,14 +78,14 @@ def show_png_image(file_path):
         image = Image.open(io.BytesIO(image_bytes))
         image.show()
 
-def visualize_palette(palette):
+def show_palette(palette):
     if palette:
-        num_colors = len(palette)
-        fig, ax = plt.subplots(1, num_colors, figsize=(num_colors, 1))
+        root = tk.Tk()
+        root.title("Palette")
         for i, color in enumerate(palette):
-            ax[i].imshow([[color]], extent=[0, 1, 0, 1], aspect='auto')
-            ax[i].axis('off')
-        plt.show()
+            frame = tk.Frame(root, bg='#%02x%02x%02x' % color, width=7, height=100)
+            frame.grid(row=0, column=i, padx=0, pady=5)
+        root.mainloop()
     else:
         print("No palette found.")
 
@@ -99,11 +99,11 @@ print("Compression method:", metadata.get('compression_method'))
 print("Filter method:", metadata.get('filter_method'))
 print("Interlace method:", metadata.get('interlace_method'))
 
-visualize_palette(metadata.get('palette'))
+show_palette(metadata.get('palette'))
 
 if metadata.get('END'):
     print("File ends properly")
 else:
     print("No IEND chunk")
 
-#show_png_image(file_path)
+show_png_image(file_path)
