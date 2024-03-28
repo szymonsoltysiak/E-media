@@ -49,6 +49,41 @@ def read_zTXt(data):
                 return keyword, None  # Failed to decompress
     return None, None
 
+def read_gAMA(data):
+    gamma = int.from_bytes(data, byteorder='big') / 100000
+    return gamma
+
+def read_bKGD(data, color_type):
+    if color_type == 3:  # Indexed-color image
+        palette_index = byte_to_int(data)
+        return palette_index
+    elif color_type in [0, 4]:  # Grayscale image or grayscale with alpha
+        grayscale_sample = byte_to_int(data)
+        return grayscale_sample
+    elif color_type in [2, 6]:  # Truecolor image or truecolor with alpha
+        red_sample = byte_to_int(data[0:2])
+        green_sample = byte_to_int(data[2:4])
+        blue_sample = byte_to_int(data[4:6])
+        return red_sample, green_sample, blue_sample
+    else:
+        return None  # Unsupported color type
+
+def read_cHRM(data):
+    white_point_x = byte_to_int(data[:4]) / 100000
+    white_point_y = byte_to_int(data[4:8]) / 100000
+    red_x = byte_to_int(data[8:12]) / 100000
+    red_y = byte_to_int(data[12:16]) / 100000
+    green_x = byte_to_int(data[16:20]) / 100000
+    green_y = byte_to_int(data[20:24]) / 100000
+    blue_x = byte_to_int(data[24:28]) / 100000
+    blue_y = byte_to_int(data[28:32]) / 100000
+    return {
+        'white_point': (white_point_x, white_point_y),
+        'red_primary': (red_x, red_y),
+        'green_primary': (green_x, green_y),
+        'blue_primary': (blue_x, blue_y)
+    }
+
 def read_png_metadata(file_path):
     with open(file_path, 'rb') as file:
         header = file.read(8)
@@ -80,6 +115,15 @@ def read_png_metadata(file_path):
             elif block_type == b'zTXt':
                 keyword, text = read_zTXt(data)
                 metadata["z_text"] = keyword+": "+text
+            elif block_type == b'gAMA':
+                gamma = read_gAMA(data)
+                metadata['gamma'] = gamma
+            elif block_type == b'cHRM':
+                chromaticity = read_cHRM(data)
+                metadata['chromaticity'] = chromaticity
+            elif block_type == b'bKGD':
+                background_data = read_bKGD(data, metadata['color_type'])
+                metadata['background'] = background_data
             elif block_type == b'IEND':
                 metadata['END'] = True
                 break
@@ -121,7 +165,7 @@ def show_palette(palette):
     else:
         print("No palette found.")
 
-file_path = 'example5.png'
+file_path = 'example6.png'
 metadata = read_png_metadata(file_path)
 print("Width:", metadata.get('width'))
 print("Height:", metadata.get('height'))
@@ -132,6 +176,9 @@ print("Filter method:", metadata.get('filter_method'))
 print("Interlace method:", metadata.get('interlace_method'))
 print(metadata.get('text'))
 print(metadata.get('z_text'))
+print("Gamma:", metadata.get('gamma'))
+print("Chromaticity:", metadata.get('chromaticity'))
+print("Background:", metadata.get('background'))
 
 
 show_palette(metadata.get('palette'))
