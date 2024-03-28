@@ -1,6 +1,7 @@
 from PIL import Image
 import io
 import tkinter as tk
+import zlib
 
 def byte_to_int(data):
     return int.from_bytes(data, byteorder='big')
@@ -34,6 +35,20 @@ def read_tEXt(data):
     text = b'\x00'.join(chunks[1:]).decode('utf-8')
     return keyword, text
 
+def read_zTXt(data):
+    null_byte_index = data.find(b'\x00')
+    if null_byte_index != -1:
+        keyword = data[:null_byte_index].decode('utf-8')
+        compression_method = data[null_byte_index + 1]
+        compressed_text = data[null_byte_index + 2:]
+        if compression_method == 0:  # Compression method 0 indicates zlib compression
+            try:
+                uncompressed_text = zlib.decompress(compressed_text).decode('utf-8')
+                return keyword, uncompressed_text
+            except zlib.error:
+                return keyword, None  # Failed to decompress
+    return None, None
+
 def read_png_metadata(file_path):
     with open(file_path, 'rb') as file:
         header = file.read(8)
@@ -59,11 +74,12 @@ def read_png_metadata(file_path):
             elif block_type == b'PLTE':
                 palette = read_PLTE(data)
                 metadata['palette'] = palette
-            elif block_type == b'eXIf':
-                metadata['exif'] = "found"
             elif block_type == b'tEXt':
                 keyword, text = read_tEXt(data)
                 metadata["text"] = keyword+": "+text
+            elif block_type == b'zTXt':
+                keyword, text = read_zTXt(data)
+                metadata["z_text"] = keyword+": "+text
             elif block_type == b'IEND':
                 metadata['END'] = True
                 break
@@ -114,8 +130,8 @@ print("Color type:", metadata.get('color_type'), ", ", recoginze_color_type(meta
 print("Compression method:", metadata.get('compression_method'))
 print("Filter method:", metadata.get('filter_method'))
 print("Interlace method:", metadata.get('interlace_method'))
-print("EXIF", metadata.get('exif'))
 print(metadata.get('text'))
+print(metadata.get('z_text'))
 
 
 show_palette(metadata.get('palette'))
