@@ -128,7 +128,7 @@ def anonymize_image(image_array, box):
     return image_array
 
 
-file_path = 'example4.png'
+file_path = 'example.png'
 metadata = read_png_metadata(file_path)
 print("Width:", metadata.get('width'))
 print("Height:", metadata.get('height'))
