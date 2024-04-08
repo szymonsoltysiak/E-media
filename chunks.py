@@ -2,6 +2,7 @@ from PIL import Image
 import io
 import tkinter as tk
 import zlib
+from PIL.ExifTags import TAGS
 
 def byte_to_int(data):
     return int.from_bytes(data, byteorder='big')
@@ -30,7 +31,6 @@ def read_PLTE(data):
 
 def read_tEXt(data):
     chunks = data.split(b'\x00')
-    # The first chunk is the keyword, and the rest are the text
     keyword = chunks[0].decode('utf-8')
     text = b'\x00'.join(chunks[1:]).decode('utf-8')
     return keyword, text
@@ -41,12 +41,12 @@ def read_zTXt(data):
         keyword = data[:null_byte_index].decode('utf-8')
         compression_method = data[null_byte_index + 1]
         compressed_text = data[null_byte_index + 2:]
-        if compression_method == 0:  # Compression method 0 indicates zlib compression
+        if compression_method == 0:  
             try:
                 uncompressed_text = zlib.decompress(compressed_text).decode('utf-8')
                 return keyword, uncompressed_text
             except zlib.error:
-                return keyword, None  # Failed to decompress
+                return keyword, None  
     return None, None
 
 def read_gAMA(data):
@@ -54,19 +54,19 @@ def read_gAMA(data):
     return gamma
 
 def read_bKGD(data, color_type):
-    if color_type == 3:  # Indexed-color image
+    if color_type == 3:  
         palette_index = byte_to_int(data)
         return palette_index
-    elif color_type in [0, 4]:  # Grayscale image or grayscale with alpha
+    elif color_type in [0, 4]:  
         grayscale_sample = byte_to_int(data)
         return grayscale_sample
-    elif color_type in [2, 6]:  # Truecolor image or truecolor with alpha
+    elif color_type in [2, 6]:  
         red_sample = byte_to_int(data[0:2])
         green_sample = byte_to_int(data[2:4])
         blue_sample = byte_to_int(data[4:6])
         return red_sample, green_sample, blue_sample
     else:
-        return None  # Unsupported color type
+        return None  
 
 def read_cHRM(data):
     white_point_x = byte_to_int(data[:4]) / 100000
@@ -84,6 +84,44 @@ def read_cHRM(data):
         'blue_primary': (blue_x, blue_y)
     }
 
+def bpc(format):
+    if format in [1,2,6,7]: 
+        return 1
+    elif format in [3,8]:
+        return 2
+    elif format in [4,9,11]:
+        return 4
+    elif format in [5,10,12]:
+        return 8
+    else:
+        return 0
+        
+
+
+def read_exif(data):
+    print(data)
+    if data[:2] == b'II':
+        byte_order = 'little'
+    elif data[:2] == b'MM':
+        byte_order = 'big'
+    else:
+        return None
+    
+    len = int.from_bytes(data[4:8], byte_order)
+    ifd_entries = int.from_bytes(data[8:10], byte_order)
+    data_tail = data[10:]
+    ifd_list=[]
+    for i in range(ifd_entries):
+        tag=int.from_bytes(data_tail[8*i:8*i+2], byte_order)
+        format=int.from_bytes(data_tail[8*i+2:8*i+4], byte_order)
+        comp_count=int.from_bytes(data_tail[8*i+4:8*i+8], byte_order)
+        size=bpc(format)*comp_count
+        ifd_list.append((tag, format, size))
+    
+    return ifd_list
+
+
+
 def read_png_metadata(file_path):
     with open(file_path, 'rb') as file:
         header = file.read(8)
@@ -92,14 +130,14 @@ def read_png_metadata(file_path):
 
         metadata = {}
         metadata['END'] = False
-        palette = None
+        text_dic={}
+        z_text_dic={}
 
         while True:
             length_bytes = file.read(4)
             if len(length_bytes) != 4:
                 break
             length = byte_to_int(length_bytes)
-
             block_type = file.read(4)
             data = file.read(length)
             crc = file.read(4)
@@ -107,26 +145,27 @@ def read_png_metadata(file_path):
             if block_type == b'IHDR':
                 metadata = read_IHDR(data)
             elif block_type == b'PLTE':
-                palette = read_PLTE(data)
-                metadata['palette'] = palette
+                metadata['palette'] = read_PLTE(data)
             elif block_type == b'tEXt':
                 keyword, text = read_tEXt(data)
-                metadata["text"] = keyword+": "+text
+                text_dic[keyword] = text
             elif block_type == b'zTXt':
                 keyword, text = read_zTXt(data)
-                metadata["z_text"] = keyword+": "+text
+                z_text_dic[keyword] = text
             elif block_type == b'gAMA':
-                gamma = read_gAMA(data)
-                metadata['gamma'] = gamma
+                metadata['gamma'] = read_gAMA(data)
             elif block_type == b'cHRM':
-                chromaticity = read_cHRM(data)
-                metadata['chromaticity'] = chromaticity
+                metadata['chromaticity'] = read_cHRM(data)
             elif block_type == b'bKGD':
-                background_data = read_bKGD(data, metadata['color_type'])
-                metadata['background'] = background_data
+                metadata['background'] = read_bKGD(data, metadata['color_type'])
+            elif block_type == b'eXIf':
+                metadata['exif'] = read_exif(data)
             elif block_type == b'IEND':
                 metadata['END'] = True
                 break
+        
+        metadata["text"]=text_dic
+        metadata["z_text"]=z_text_dic
 
         return metadata
 
@@ -165,27 +204,38 @@ def show_palette(palette):
     else:
         print("No palette found.")
 
-file_path = 'example6.png'
+file_path = 'example8.png'
 metadata = read_png_metadata(file_path)
-print("Width:", metadata.get('width'))
-print("Height:", metadata.get('height'))
-print("Bit depth:", metadata.get('bit_depth'))
-print("Color type:", metadata.get('color_type'), ", ", recoginze_color_type(metadata.get('color_type')))
-print("Compression method:", metadata.get('compression_method'))
-print("Filter method:", metadata.get('filter_method'))
-print("Interlace method:", metadata.get('interlace_method'))
-print(metadata.get('text'))
-print(metadata.get('z_text'))
-print("Gamma:", metadata.get('gamma'))
-print("Chromaticity:", metadata.get('chromaticity'))
-print("Background:", metadata.get('background'))
+# print("Width:", metadata.get('width'))
+# print("Height:", metadata.get('height'))
+# print("Bit depth:", metadata.get('bit_depth'))
+# print("Color type:", metadata.get('color_type'), ", ", recoginze_color_type(metadata.get('color_type')))
+# print("Compression method:", metadata.get('compression_method'))
+# print("Filter method:", metadata.get('filter_method'))
+# print("Interlace method:", metadata.get('interlace_method'))
+# print(metadata.get('text'))
+# print(metadata.get('z_text'))
+# print("Gamma:", metadata.get('gamma'))
+# print("Chromaticity:", metadata.get('chromaticity'))
+# print("Background:", metadata.get('background'))
+print("EXIF", metadata.get('exif'))
 
 
-show_palette(metadata.get('palette'))
+# show_palette(metadata.get('palette'))
 
-if metadata.get('END'):
-    print("File ends properly")
-else:
-    print("No IEND chunk")
+# if metadata.get('END'):
+#     print("File ends properly")
+# else:
+#     print("No IEND chunk")
 
-show_png_image(file_path)
+# show_png_image(file_path)
+
+image = Image.open(file_path)
+
+exif = {}
+
+for tag, value in image._getexif().items():
+    if tag in TAGS:
+        exif[TAGS[tag]] = value
+
+print(exif)
