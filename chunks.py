@@ -258,7 +258,7 @@ def show_palette(palette):
     else:
         print("No palette found.")
 
-file_path = 'example9.png'
+file_path = 'example5.png'
 metadata = read_png_metadata(file_path)
 print("Width:", metadata.get('width'))
 print("Height:", metadata.get('height'))
@@ -273,7 +273,6 @@ print("Gamma:", metadata.get('gamma'))
 print("Chromaticity:", metadata.get('chromaticity'))
 print("Background:", metadata.get('background'))
 print("EXIF", metadata.get('exif'))
-
 
 show_palette(metadata.get('palette'))
 
