@@ -3,6 +3,7 @@ import io
 import tkinter as tk
 import zlib
 from PIL.ExifTags import TAGS
+import struct
 
 def byte_to_int(data):
     return int.from_bytes(data, byteorder='big')
@@ -84,22 +85,66 @@ def read_cHRM(data):
         'blue_primary': (blue_x, blue_y)
     }
 
-def bpc(format):
-    if format in [1,2,6,7]: 
+def bpc(type):
+    if type in [1,2,6,7]: 
         return 1
-    elif format in [3,8]:
+    elif type in [3,8]:
         return 2
-    elif format in [4,9,11]:
+    elif type in [4,9,11]:
         return 4
-    elif format in [5,10,12]:
+    elif type in [5,10,12]:
         return 8
     else:
         return 0
         
+def data_to_value(type, value_data, byte_order):
+    if byte_order=='big':
+        order='>'
+    else:
+        order='<'
 
+    if type==2:
+        return value_data.decode().rstrip('\x00')
+    if type==3:
+        return struct.unpack(order+'H', value_data[:2])[0]
+    if type==4:
+        return struct.unpack(order+'L', value_data)[0]
+    if type==5:
+        print(value_data)
+        num=struct.unpack(order+'H', value_data[2:4])[0]
+        den=struct.unpack(order+'H', value_data[6:])[0]
+        return num/den
+    if type==8:
+        return struct.unpack(order+'h', value_data[:2])[0]
+    if type==9:
+        return struct.unpack(order+'l', value_data)[0]
+    if type==10:
+        print(value_data)
+        num=struct.unpack(order+'h', value_data[2:4])[0]
+        den=struct.unpack(order+'l', value_data[6:])[0]
+        return num/den
+    if type==11:
+        return struct.unpack('f', value_data)[0]
+    if type==12:
+        return struct.unpack('d', value_data)[0]
+    return value_data
+
+def translate_tag(tag_number):
+    exif_tags = {
+        256: "ImageWidth",
+        257: "ImageLength",
+        274: "Orientation",
+        282: "XResolution",
+        283: "YResolution",
+        305: "Software",
+        270: "ImageDescription",
+        296: "ResolutionUnit",
+        33432: "Copyright",
+        34665: "ExifOffset"
+    }
+    return exif_tags.get(tag_number, tag_number)
 
 def read_exif(data):
-    print(data)
     if data[:2] == b'II':
         byte_order = 'little'
     elif data[:2] == b'MM':
@@ -107,16 +152,25 @@ def read_exif(data):
     else:
         return None
     
-    len = int.from_bytes(data[4:8], byte_order)
-    ifd_entries = int.from_bytes(data[8:10], byte_order)
-    data_tail = data[10:]
+    offset=int.from_bytes(data[4:6], byte_order)
+    if(offset==0):
+        offset=8 
+    number_entries = int.from_bytes(data[offset:offset+2], byte_order)
+    offset+=2
     ifd_list=[]
-    for i in range(ifd_entries):
-        tag=int.from_bytes(data_tail[8*i:8*i+2], byte_order)
-        format=int.from_bytes(data_tail[8*i+2:8*i+4], byte_order)
-        comp_count=int.from_bytes(data_tail[8*i+4:8*i+8], byte_order)
-        size=bpc(format)*comp_count
-        ifd_list.append((tag, format, size))
+    for i in range(number_entries):
+        tag=int.from_bytes(data[offset+12*i:offset+12*i+2], byte_order)
+        type=int.from_bytes(data[offset+12*i+2:offset+12*i+4], byte_order)
+        comp_count=int.from_bytes(data[offset+12*i+4:offset+12*i+8], byte_order)
+        size=bpc(type)*comp_count
+        if(size<=4):
+            value_data=data[offset+12*i+8:offset+12*i+12]
+        else:
+            data_offset=int.from_bytes(data[offset+12*i+8:offset+12*i+12], byte_order)
+            value_data=data[data_offset:data_offset+size]
+
+        value=data_to_value(type, value_data, byte_order)
+        ifd_list.append((translate_tag(tag), value))
     
     return ifd_list
 
@@ -204,38 +258,28 @@ def show_palette(palette):
     else:
         print("No palette found.")
 
-file_path = 'example8.png'
+file_path = 'example9.png'
 metadata = read_png_metadata(file_path)
-# print("Width:", metadata.get('width'))
-# print("Height:", metadata.get('height'))
-# print("Bit depth:", metadata.get('bit_depth'))
-# print("Color type:", metadata.get('color_type'), ", ", recoginze_color_type(metadata.get('color_type')))
-# print("Compression method:", metadata.get('compression_method'))
-# print("Filter method:", metadata.get('filter_method'))
-# print("Interlace method:", metadata.get('interlace_method'))
-# print(metadata.get('text'))
-# print(metadata.get('z_text'))
-# print("Gamma:", metadata.get('gamma'))
-# print("Chromaticity:", metadata.get('chromaticity'))
-# print("Background:", metadata.get('background'))
+print("Width:", metadata.get('width'))
+print("Height:", metadata.get('height'))
+print("Bit depth:", metadata.get('bit_depth'))
+print("Color type:", metadata.get('color_type'), ", ", recoginze_color_type(metadata.get('color_type')))
+print("Compression method:", metadata.get('compression_method'))
+print("Filter method:", metadata.get('filter_method'))
+print("Interlace method:", metadata.get('interlace_method'))
+print(metadata.get('text'))
+print(metadata.get('z_text'))
+print("Gamma:", metadata.get('gamma'))
+print("Chromaticity:", metadata.get('chromaticity'))
+print("Background:", metadata.get('background'))
 print("EXIF", metadata.get('exif'))
 
 
-# show_palette(metadata.get('palette'))
+show_palette(metadata.get('palette'))
 
-# if metadata.get('END'):
-#     print("File ends properly")
-# else:
-#     print("No IEND chunk")
+if metadata.get('END'):
+    print("File ends properly")
+else:
+    print("No IEND chunk")
 
-# show_png_image(file_path)
-
-image = Image.open(file_path)
-
-exif = {}
-
-for tag, value in image._getexif().items():
-    if tag in TAGS:
-        exif[TAGS[tag]] = value
-
-print(exif)
+show_png_image(file_path)
