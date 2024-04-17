@@ -9,18 +9,9 @@ from fourier_transform import fourier_transform_image
 def process_image(file_path, output_file):
     print("Czytanie metadanych PNG...")
     metadata = read_png_metadata(file_path)
-    print("Szerokość:", metadata.get('width'))
-    print("Wysokość:", metadata.get('height'))
-    print("Głębokość bitów:", metadata.get('bit_depth'))
-    print("Metoda kompresji:", metadata.get('compression_method'))
-    print("Metoda filtrowania:", metadata.get('filter_method'))
-    print("Metoda przeplotu:", metadata.get('interlace_method'))
-    print("Text:", metadata.get('text'))
-    print("Text:", metadata.get('z_text'))
-    print("Gamma:", metadata.get('gamma'))
-    print("Chrominancja:", metadata.get('chromaticity'))
-    print("Tło:", metadata.get('background'))
-    print("EXIF:", metadata.get('exif'))
+    for key in metadata:
+        if key!='palette' and metadata.get(key):
+            print(key,": ", metadata.get(key))
 
     if metadata.get('END'):
         print("Plik zakończony poprawnie")
