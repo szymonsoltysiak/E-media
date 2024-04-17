@@ -15,8 +15,8 @@ def process_image(file_path, output_file):
     print("Metoda kompresji:", metadata.get('compression_method'))
     print("Metoda filtrowania:", metadata.get('filter_method'))
     print("Metoda przeplotu:", metadata.get('interlace_method'))
-    print(metadata.get('text'))
-    print(metadata.get('z_text'))
+    print("Text:", metadata.get('text'))
+    print("Text:", metadata.get('z_text'))
     print("Gamma:", metadata.get('gamma'))
     print("Chrominancja:", metadata.get('chromaticity'))
     print("Tło:", metadata.get('background'))
@@ -27,7 +27,6 @@ def process_image(file_path, output_file):
     else:
         print("Brak chunku IEND")
 
-    # Wyświetlanie palety, jeśli istnieje
     if 'palette' in metadata:
         print("\nWyświetlanie palety...")
         show_palette(metadata['palette'])
@@ -43,8 +42,8 @@ def process_image(file_path, output_file):
     show_png_image(output_file)
 
 if __name__ == "__main__":
-    input_file = "example.png"
-    output_file = "example_anonymized.png"
+    input_file = "example8.png"
+    output_file = "example8_anonymized.png"
 
     # Wczyt oryginalnego pliku PNG
     original_png = PNG(input_file)

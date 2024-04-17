@@ -15,7 +15,6 @@ def fourier_transform_image(file_path):
     magnitude_spectrum = 20 * np.log(cv2.magnitude(fourier_shift[:,:,0], fourier_shift[:,:,1]))
     magnitude_spectrum = cv2.normalize(magnitude_spectrum, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8UC1)
 
-
     fft=fourier_shift[:,:,0]+1j*fourier_shift[:,:,1]
     phase_spectrum = np.angle(fft)
 
